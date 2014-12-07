@@ -30,18 +30,17 @@
 #include <stdio.h>
 #ifdef __linux__
 #include <getopt.h>
+#include <stddef.h>
 #else
 #include <stdlib.h>
 #include <unistd.h>
 #include <SIOUX.h>
 #endif
-#include <string.h>
 #include <errno.h>
 
 #ifdef __linux__
 #include <sys/ioctl.h>
-#include <linux/fs.h>
-#include <linux/hdreg.h>
+#include "kernel-defs.h"
 #endif
 
 #include "pdisk.h"
@@ -94,6 +93,7 @@ int rflag;
 void do_add_intel_partition(partition_map_header *map);
 void do_change_map_size(partition_map_header *map);
 void do_create_partition(partition_map_header *map, int get_type);
+void do_create_bootstrap_partition(partition_map_header *map);
 void do_delete_partition(partition_map_header *map);
 int do_expert(partition_map_header *map);
 void do_reorder(partition_map_header *map);
@@ -114,6 +114,7 @@ int
 main(int argc, char **argv)
 {
     int name_index;
+    int err=0;
 
     if (sizeof(DPME) != PBLOCK_SIZE) {
 	fatal(-1, "Size of partion map entry (%d) "
@@ -150,7 +151,9 @@ main(int argc, char **argv)
     } else if (!vflag) {
 	usage("no device argument");
  	do_help();
+	err=-EINVAL;	// debatable
     }
+    exit(err);
 }
 #else
 main()
@@ -351,7 +354,8 @@ edit(char *name)
 	    printf("  P    (print ordered by base address)\n");
 	    printf("  i    initialize partition map\n");
 	    printf("  s    change size of partition map\n");
-	    printf("  c    create new partition\n");
+	    printf("  b    create new 800K bootstrap partition\n");
+	    printf("  c    create new Linux partition\n");
 	    printf("  C    (create with type also specified)\n");
 	    printf("  d    delete a partition\n");
 	    printf("  r    reorder partition entry in map\n");
@@ -377,6 +381,10 @@ edit(char *name)
 	case 'I':
 	case 'i':
 	    map = init_partition_map(name, map);
+	    break;
+	case 'B':
+	case 'b':
+	    do_create_bootstrap_partition(map);
 	    break;
 	case 'C':
 	    get_type = 1;
@@ -471,6 +479,30 @@ do_create_partition(partition_map_header *map, int get_type)
 }
 
 
+void
+do_create_bootstrap_partition(partition_map_header *map)
+{
+    long base;
+
+    if (map == NULL) {
+	bad_input("No partition map exists");
+	return;
+    }
+ 
+    if (!rflag && map->writeable == 0) {
+	printf("The map is not writeable.\n");
+    }
+
+    // XXX add help feature (i.e. '?' in any argument routine prints help string)
+    if (get_base_argument(&base, map) == 0) {
+	return;
+    }
+
+    // create 800K type Apple_Bootstrap partition named `bootstrap'
+    add_partition_to_map(kBootstrapName, kBootstrapType, base, 1600, map);
+}
+
+
 int
 get_base_argument(long *number, partition_map_header *map)
 {
@@ -508,7 +540,7 @@ get_size_argument(long *number, partition_map_header *map)
     int result = 0;
     long multiple;
 
-    if (get_number_argument("Length in blocks: ", number, kDefault) == 0) {
+    if (get_number_argument("Length (in blocks, kB (k), MB (M) or GB (G)): ", number, kDefault) == 0) {
 	bad_input("Bad length");
     } else {
 	result = 1;
@@ -605,12 +637,21 @@ do_write_partition_map(partition_map_header *map)
 	bad_input("The map is not writeable.");
 	return;
     }
-    printf("Writing the map destroys what was there before. ");
-    if (get_okay("Is that okay? [n/y]: ", 0) != 1) {
+//    printf("Writing the map destroys what was there before. ");
+    printf("IMPORTANT: You are about to write a changed partition map to disk. \n");
+    printf("For any partition you changed the start or size of, writing out \n");
+    printf("the map causes all data on that partition to be LOST FOREVER. \n");
+    printf("Make sure you have a backup of any data on such partitions you \n");
+    printf("want to keep before answering 'yes' to the question below! \n\n");
+    if (get_okay("Write partition map? [n/y]: ", 0) != 1) {
 	return;
     }
 
     write_partition_map(map);
+
+    printf("\nPartition map written to disk. If any partitions on this disk \n");
+    printf("were still in use by the system (see messages above), you will need \n");
+    printf("to reboot in order to utilize the new partition map.\n\n");
 
     // exit(0);
 }

@@ -38,7 +38,6 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include <fcntl.h>
 #include <ctype.h>
 #include <setjmp.h>
@@ -47,9 +46,7 @@
 #include <sys/ioctl.h>
 #include <sys/param.h>
 
-#include <linux/genhd.h>
-#include <linux/hdreg.h>
-#include <linux/fs.h>
+#include "kernel-defs.h"
 
 #include "fdisk.h"
 #define DKTYPENAMES
@@ -377,7 +374,7 @@ bsd_create_disklabel (void)
     {
 #if defined (i386)
       if (bsd_initlabel (bsd_part, &bsd_dlabel, bsd_part_index) == 1)
-#elif defined (__alpha__) || defined (__powerpc__)
+#elif defined (__alpha__) || defined (__powerpc__) || defined (__mc68000__)
       if (bsd_initlabel (NULL, &bsd_dlabel, 0) == 1)
 #endif
       {
@@ -515,7 +512,7 @@ bsd_write_bootstrap (void)
   alpha_bootblock_checksum (buffer);
 #endif
 
-  if (llseek (fd, sector * SECTOR_SIZE, SEEK_SET) == -1)
+  if (lseek64 (fd, sector * SECTOR_SIZE, SEEK_SET) == -1)
     fatal (unable_to_seek);
   if (BSD_BBSIZE != write (fd, buffer, BSD_BBSIZE))
     fatal (unable_to_write);
@@ -679,7 +676,7 @@ bsd_readlabel (struct partition *p, struct disklabel *d)
   sector = 0;
 #endif
 
-  if (llseek (fd, sector * SECTOR_SIZE, SEEK_SET) == -1)
+  if (lseek64 (fd, sector * SECTOR_SIZE, SEEK_SET) == -1)
     fatal (unable_to_seek);
   if (BSD_BBSIZE != read (fd, buffer, BSD_BBSIZE))
     fatal (unable_to_read);
@@ -724,12 +721,12 @@ bsd_writelabel (struct partition *p, struct disklabel *d)
 
 #if defined (__alpha__) && BSD_LABELSECTOR == 0
   alpha_bootblock_checksum (buffer);
-  if (llseek (fd, 0, SEEK_SET) == -1)
+  if (lseek64 (fd, 0, SEEK_SET) == -1)
     fatal (unable_to_seek);
   if (BSD_BBSIZE != write (fd, buffer, BSD_BBSIZE))
     fatal (unable_to_write);
 #else
-  if (llseek (fd, sector * SECTOR_SIZE + BSD_LABELOFFSET, SEEK_SET) == -1)
+  if (lseek64 (fd, sector * SECTOR_SIZE + BSD_LABELOFFSET, SEEK_SET) == -1)
     fatal (unable_to_seek);
   if (sizeof (struct disklabel) != write (fd, d, sizeof (struct disklabel)))
     fatal (unable_to_write);

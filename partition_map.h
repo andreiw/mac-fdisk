@@ -69,6 +69,8 @@ typedef struct partition_map partition_map;
 extern const char * kFreeType;
 extern const char * kMapType;
 extern const char * kUnixType;
+extern const char * kBootstrapType;
+extern const char * kBootstrapName;
 
 extern const char * kFreeName;
 

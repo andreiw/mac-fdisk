@@ -61,7 +61,7 @@
 //
 typedef	unsigned char	u8;
 typedef	unsigned short	u16;
-typedef	unsigned long	u32;
+typedef	unsigned int	u32;
 
 
 // Physical block zero of the disk has this format
@@ -113,10 +113,17 @@ struct dpme {
 #endif
     u32     dpme_boot_block         ;
     u32     dpme_boot_bytes         ;
+#ifdef __linux__
+    u32     dpme_load_addr          ;
+    u32     dpme_load_addr_2        ;
+    u32     dpme_goto_addr          ;
+    u32     dpme_goto_addr_2        ;
+#else
     u8     *dpme_load_addr          ;
     u8     *dpme_load_addr_2        ;
     u8     *dpme_goto_addr          ;
     u8     *dpme_goto_addr_2        ;
+#endif
     u32     dpme_checksum           ;
     char    dpme_process_id[16]     ;
     u32     dpme_boot_args[32]      ;
@@ -124,6 +131,7 @@ struct dpme {
 };
 typedef struct dpme DPME;
 
+#define	dpme_automount_set(p, v)	bitfield_set(&p->dpme_flags, 30, 1, v) /* MSch */
 #define	dpme_os_specific_1_set(p, v)	bitfield_set(&p->dpme_flags, 8, 1, v)
 #define	dpme_os_specific_2_set(p, v)	bitfield_set(&p->dpme_flags, 7, 1, v)
 #define	dpme_os_pic_code_set(p, v)	bitfield_set(&p->dpme_flags, 6, 1, v)
@@ -134,6 +142,7 @@ typedef struct dpme DPME;
 #define	dpme_allocated_set(p, v)	bitfield_set(&p->dpme_flags, 1, 1, v)
 #define	dpme_valid_set(p, v)		bitfield_set(&p->dpme_flags, 0, 1, v)
 
+#define	dpme_automount_get(p)		bitfield_get(p->dpme_flags, 30, 1)	/* MSch */
 #define	dpme_os_specific_1_get(p)	bitfield_get(p->dpme_flags, 8, 1)
 #define	dpme_os_specific_2_get(p)	bitfield_get(p->dpme_flags, 7, 1)
 #define	dpme_os_pic_code_get(p)		bitfield_get(p->dpme_flags, 6, 1)

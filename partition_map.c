@@ -30,14 +30,12 @@
 #include <stdlib.h>
 #include <unistd.h>
 #endif
-#include <string.h>
 #include <errno.h>
 
 #include <fcntl.h>
 #ifdef __linux__
 #include <sys/ioctl.h>
-#include <linux/fs.h>
-#include <linux/hdreg.h>
+#include "kernel-defs.h"
 #include <sys/stat.h>
 #endif
 
@@ -65,6 +63,8 @@
 const char * kFreeType	= "Apple_Free";
 const char * kMapType	= "Apple_partition_map";
 const char * kUnixType	= "Apple_UNIX_SVR2";
+const char * kBootstrapType = "Apple_Bootstrap";
+const char * kBootstrapName = "bootstrap";
 
 const char * kFreeName = "Extra";
 
@@ -288,15 +288,17 @@ write_partition_map(partition_map_header *map)
 	    free(block);
 	}
     }
-    printf("The partition table has been altered!\n\n");
+    printf("The partition map has been saved successfully!\n\n");
 
 #ifdef __linux__
     if (map->regular_file) {
 	close_device(map->fd);
     } else {
-	// printf("Calling ioctl() to re-read partition table.\n"
-	//       "(Reboot to ensure the partition table has been updated.)\n");
-	sync();
+	// printf("Calling ioctl() to re-read partition table.\n");
+	if ((i = ioctl(fd, BLKFLSBUF)) != 0) {
+	    perror("ioctl(BLKFLSBUF)");
+	    sync();
+	}
 	sleep(2);
 	if ((i = ioctl(fd, BLKRRPART)) != 0) {
 	    saved_errno = errno;
@@ -304,20 +306,26 @@ write_partition_map(partition_map_header *map)
 	    // some kernel versions (1.2.x) seem to have trouble
 	    // rereading the partition table, but if asked to do it
 	    // twice, the second time works. - biro@yggdrasil.com */
-	    sync();
+	    // printf("Again calling ioctl() to re-read partition table.\n");
+	    if ((i = ioctl(fd, BLKFLSBUF)) != 0) {
+	    	perror("ioctl(BLKFLSBUF)");
+		sync();
+	    }
 	    sleep(2);
 	    if ((i = ioctl(fd, BLKRRPART)) != 0) {
 		saved_errno = errno;
 	    }
 	}
+	printf("Syncing disks.\n");
+	if ((i = ioctl(fd, BLKFLSBUF)) != 0) {
+	    perror("ioctl(BLKFLSBUF)");
+	    sync();
+	}
 	close_device(map->fd);
-
-	// printf("Syncing disks.\n");
-	sync();
 	sleep(4);		/* for sync() */
 
 	if (i < 0) {
-	    error(saved_errno, "Re-read of partition table failed");
+	    error(saved_errno, "Re-read of partition map failed");
 	    printf("Reboot your system to ensure the "
 		    "partition table is updated.\n");
 	}
@@ -692,9 +700,9 @@ compute_device_size(int fd)
 		geometry.heads*geometry.sectors*geometry.cylinders);
     }
 
-    if ((pos = llseek(fd, 0, SEEK_END)) < 0) {
+    if ((pos = lseek64(fd, 0, SEEK_END)) < 0) {
 	printf("llseek to end of device failed\n");
-    } else if ((pos = llseek(fd, 0, SEEK_CUR)) < 0) {
+    } else if ((pos = lseek64(fd, 0, SEEK_CUR)) < 0) {
 	printf("llseek to end of device failed on second try\n");
     } else {
 	printf("llseek: pos = %d, blocks=%d\n", pos, pos/PBLOCK_SIZE);
@@ -895,6 +903,7 @@ move_entry_in_map(long old_index, long index, partition_map_header *map)
 	printf("No such partition\n");
     } else {
 	remove_from_disk_order(cur);
+	if (old_index < index) index++; /* renumber_disk_addresses(map); */
 	cur->disk_address = index;
 	insert_in_disk_order(cur);
 	renumber_disk_addresses(map);

@@ -3,7 +3,11 @@
 //
 // Written by Eryk Vershen (eryk@apple.com)
 //
-
+/*
+ * Linux/m68k version by Christiaan Welvaart
+ * minor fixes and glibc change by Michael Schmitz
+ */
+ 
 /*
  * Copyright 1996,1997 by Apple Computer, Inc.
  *              All Rights Reserved 
@@ -60,6 +64,7 @@ typedef struct names {
 //
 NAMES plist[] = {
     "Drvr", "Apple_Driver",
+    "Dr43", "Apple_Driver43",
     "Free", "Apple_Free",
     " HFS", "Apple_HFS",
     " MFS", "Apple_MFS",
@@ -83,7 +88,7 @@ const char * kStringNot		= " not";
 // Forward declarations
 //
 void dump_block_zero(partition_map_header *map);
-void dump_partition_entry(partition_map *entry, int digits);
+void dump_partition_entry(partition_map *entry, int digits, char *dev);
 
 
 //
@@ -119,6 +124,7 @@ dump_block_zero(partition_map_header *map)
     }
     printf("\nBlock size=%u, Number of Blocks=%u\n",
 	    p->sbBlkSize, p->sbBlkCount);
+#ifndef __mc68000__
     printf("DeviceType=0x%x, DeviceId=0x%x\n",
 	    p->sbDevType, p->sbDevId);
     if (p->sbDrvrCount > 0) {
@@ -130,6 +136,7 @@ dump_block_zero(partition_map_header *map)
 	}
     }
     printf("\n");
+#endif
 }
 
 
@@ -138,31 +145,50 @@ dump_partition_map(partition_map_header *map, int disk_order)
 {
     partition_map * entry;
     int j;
+    size_t len;
+    char *buf;
 
     if (map == NULL) {
 	bad_input("No partition map exists");
 	return;
     }
+#ifdef __mc68000__
+    printf("Disk %s\n", map->name);
+#else
     printf("%s\n", map->name);
+#endif
 
     j = number_of_digits(map->media_size);
     if (j < 7) {
 	j = 7;
     }
-    printf("   #:                 type name               "
-	    "%*s   %-*s ( size )\n", j, "length", j, "base");
+#ifdef __mc68000__
+    printf("%*s  type name         "
+	    "%*s   %-*s ( size )  system\n", strlen(map->name)+1, "#", j, "length", j, "base");
+#else
+    printf("%*s                    type name               "
+	    "%*s   %-*s ( size )  system\n", strlen(map->name)+1, "#", j, "length", j, "base");
+#endif
+
+    /* Grok devfs names. (courtesy Colin Walters)*/
+
+    len = strlen(map->name);
+    buf = strdup(map->name);
+    if (len >= 4 && !strcmp(buf+len-4, "disc")) {
+	strcpy(buf+len-4, "part");
+    }
 
     if (disk_order) {
 	for (entry = map->disk_order; entry != NULL;
 		entry = entry->next_on_disk) {
 
-	    dump_partition_entry(entry, j);
+	    dump_partition_entry(entry, j, buf);
 	}
     } else {
 	for (entry = map->base_order; entry != NULL;
 		entry = entry->next_by_base) {
 
-	    dump_partition_entry(entry, j);
+	    dump_partition_entry(entry, j, buf);
 	}
     }
     dump_block_zero(map);
@@ -170,17 +196,22 @@ dump_partition_map(partition_map_header *map, int disk_order)
 
 
 void
-dump_partition_entry(partition_map *entry, int digits)
+dump_partition_entry(partition_map *entry, int digits, char *dev)
 {
     partition_map_header *map;
     int j;
     DPME *p;
     BZB *bp;
     char *s;
+#ifdef __mc68000__
+    int aflag = 1;
+#else
     int aflag = 0;
+#endif
     int pflag = 1;
     u32 size;
     double bytes;
+
 
     map = entry->the_map;
     p = entry->data;
@@ -192,9 +223,13 @@ dump_partition_entry(partition_map *entry, int digits)
 		break;
 	    }
 	}
-	printf("%4d: %.4s %-18.32s ", entry->disk_address, s, p->dpme_name);
+#ifdef __mc68000__
+	printf("%s%-2d %.4s %-12.12s ", dev, entry->disk_address, s, p->dpme_name);
+#else
+	printf("%s%-4d  %.4s %-18.32s ", dev, entry->disk_address, s, p->dpme_name);
+#endif
     } else {
-	printf("%4d: %20.32s %-18.32s ",
+	printf("%s%-4d %20.32s %-18.32s ", dev, 
 		entry->disk_address, p->dpme_type, p->dpme_name);
     }
 
@@ -217,7 +252,10 @@ dump_partition_entry(partition_map *entry, int digits)
 	printf("@~%-*u", digits, p->dpme_pblock_start + p->dpme_lblock_start);
     }
     
+    j = 's';
+
     bytes = size / ONE_KILOBYTE_IN_BLOCKS;
+    j = 'k';
     if (bytes >= 1024.0) {
 	bytes = bytes / 1024.0;
 	if (bytes < 1024.0) {
@@ -226,58 +264,45 @@ dump_partition_entry(partition_map *entry, int digits)
 	    bytes = bytes / 1024.0;
 	    j = 'G';
 	}
-	printf(" (%#5.1f%c)", bytes, j);
     }
+    printf(" (%#5.1f%c)  ", bytes, j);
 
-#if 0
-    // Old A/UX fields that no one pays attention to anymore.
-    bp = (BZB *) (p->dpme_bzb);
-    j = -1;
-    if (bp->bzb_magic == BZBMAGIC) {
-	switch (bp->bzb_type) {
-	case FSTEFS:
-	    s = "EFS";
-	    break;
-	case FSTSFS:
-	    s = "SFS";
-	    j = 1;
-	    break;
-	case FST:
-	default:
-	    if (bzb_root_get(bp) != 0) {
-		if (bzb_usr_get(bp) != 0) {
-		    s = "RUFS";
-		} else {
-		    s = "RFS";
-		}
-		j = 0;
-	    } else if (bzb_usr_get(bp) != 0) {
-		s = "UFS";
-		j = 2;
-	    } else {
-		s = "FS";
-	    }
-	    break;
-	}
-	if (bzb_slice_get(bp) != 0) {
-	    printf(" s%1d %4s", bzb_slice_get(bp)-1, s);
-	} else if (j >= 0) {
-	    printf(" S%1d %4s", j, s);
-	} else {
-	    printf("    %4s", s);
-	}
-	if (bzb_crit_get(bp) != 0) {
-	    printf(" K%1d", bp->bzb_cluster);
-	} else if (j < 0) {
-	    printf("   ");
-	} else {
-	    printf(" k%1d", bp->bzb_cluster);
-	}
-	if (bp->bzb_mount_point[0] != 0) {
-	    printf("  %.64s", bp->bzb_mount_point);
-	}
+    if (!strcmp(p->dpme_type, "Apple_UNIX_SVR2"))
+    {
+         if (!strcmp(p->dpme_name, "Swap") || !strcmp(p->dpme_name, "swap"))
+            printf("Linux swap");
+         else
+            printf("Linux native");
     }
-#endif
+    else
+    if (!strcmp(p->dpme_type, "Apple_Bootstrap"))
+         printf("NewWorld bootblock");
+    else
+    if (!strcmp(p->dpme_type, "Apple_Scratch"))
+         printf("Linux swap");  //not just linux, but who cares
+    else
+    if (!strcmp(p->dpme_type, "Apple_HFS"))
+         printf("HFS");
+    else
+    if (!strcmp(p->dpme_type, "Apple_MFS"))
+        printf("MFS");
+    else
+    if (!strcmp(p->dpme_type, "Apple_Driver"))
+        printf("Driver");
+    else
+    if (!strcmp(p->dpme_type, "Apple_Driver43"))
+        printf("Driver 4.3");
+    else
+    if (!strcmp(p->dpme_type, "Apple_partition_map"))
+        printf("Partition map");
+    else
+    if (!strcmp(p->dpme_type, "Apple_PRODOS"))
+        printf("ProDOS");
+    else
+    if (!strcmp(p->dpme_type, "Apple_Free"))
+        printf("Free space");
+    else
+        printf("Unknown");
     printf("\n");
 }
 
@@ -316,6 +341,24 @@ list_all_disks()
 
 	dump(name);
     }
+#ifdef __linux__
+    for (i = 0; i < 4; i++) {
+	sprintf(name, "/dev/hd%c", 'a'+i);
+	if ((fd = open_device(name, O_RDONLY)) < 0) {
+	    if (errno == EACCES) {
+		error(errno, "can't open file '%s'", name);
+	    }
+	    continue;
+	}
+	if (read_block(fd, 1, (char *)data, 1) == 0) {
+	    close_device(fd);
+	    continue;
+	}
+	close_device(fd);
+
+	dump(name);
+    }
+#endif
     free(data);
 }
 
@@ -385,7 +428,7 @@ u32     dpme_reserved_3[62]     ;
 	printf("%2d: %20.32s ",
 		entry->disk_address, p->dpme_type);
 	printf("%7u @ %-7u ", p->dpme_pblocks, p->dpme_pblock_start);
-	printf("%c%c%c%c%c%c%c%c%c ",
+	printf("%c%c%c%c%c%c%c%c%c%c ",
 		(dpme_valid_get(p))?'V':'v',
 		(dpme_allocated_get(p))?'A':'a',
 		(dpme_in_use_get(p))?'I':'i',
@@ -394,7 +437,8 @@ u32     dpme_reserved_3[62]     ;
 		(dpme_writable_get(p))?'W':'w',
 		(dpme_os_pic_code_get(p))?'P':'p',
 		(dpme_os_specific_1_get(p))?'1':'.',
-		(dpme_os_specific_2_get(p))?'2':'.');
+		(dpme_os_specific_2_get(p))?'2':'.',
+		(dpme_automount_get(p))?'M':'m');
 	if (p->dpme_lblock_start != 0 || p->dpme_pblocks != p->dpme_lblocks) {
 	    printf("(%u @ %u)", p->dpme_lblocks, p->dpme_lblock_start);
 	}

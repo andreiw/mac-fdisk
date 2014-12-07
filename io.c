@@ -30,6 +30,10 @@
 #include <stdlib.h>
 #include <fcntl.h>
 #include <SCSI.h>
+#else
+#ifdef __GLIBC__
+#include <sys/types.h>
+#endif
 #endif
 #include <unistd.h>
 #include <string.h>
@@ -51,6 +55,8 @@
 #define SCSI_FD 8
 #define loff_t long
 #define llseek lseek
+#else
+#define llseek lseek64
 #endif
 
 
@@ -435,8 +441,8 @@ read_block(int fd, unsigned long num, char *buf, int quiet)
 #else
     {
 #endif
-	x = num * PBLOCK_SIZE;
-	if ((x = llseek(fd, x, 0)) < 0) {
+	x = ((long long) num * PBLOCK_SIZE); /* cast to ll to work around compiler bug */
+	if ((x = lseek64(fd, x, 0)) < 0) {
 	    if (quiet == 0) {
 		error(errno, "Can't seek on file");
 	    }

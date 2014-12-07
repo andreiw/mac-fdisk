@@ -1,0 +1,173 @@
+mac-fdisk (0.1-16ubuntu2) trusty; urgency=medium
+
+  * Fix postinst to work for ppc64 and ppc64el the same as powerpc.
+
+ -- Adam Conrad <adconrad@ubuntu.com>  Fri, 31 Jan 2014 13:40:14 +0000
+
+mac-fdisk (0.1-16ubuntu1) trusty; urgency=medium
+
+  * Allow building pmac-fdisk on ppc64el as well as powerpc and ppc64.
+  * Fix DEB_HOST_ARCH/DEB_BUILD_ARCH confusion for cross-compiling.
+
+ -- Adam Conrad <adconrad@ubuntu.com>  Fri, 31 Jan 2014 11:33:29 +0000
+
+mac-fdisk (0.1-16) unstable; urgency=low
+
+  * Fix udeb shlib dependencies - patch by Frans Pop <elendil@planet.nl>
+    Closes: #562190.
+
+ -- Michael Schmitz <schmitz@debian.org>  Sun, 03 Jan 2010 13:47:27 +1200
+
+mac-fdisk (0.1-15) unstable; urgency=low
+
+  * Rebuild against current glibc to get rid of sys_errlist type size
+    warning (bug reported by Rick Thomas).
+    Closes: #451386.
+
+ -- Michael Schmitz <schmitz@biophys.uni-duesseldorf.de>  Mon, 25 Sep 2005 14:50:13 +0100
+
+mac-fdisk (0.1-14) unstable; urgency=low
+
+  * Fix dpme.h u32 typedef which caused a mismatch between disk and memory
+    partition map format.
+    Closes: #389379.
+
+ -- Michael Schmitz <schmitz@biophys.uni-duesseldorf.de>  Mon, 25 Sep 2005 14:50:13 +0100
+
+mac-fdisk (0.1-13) unstable; urgency=low
+
+  * Add patch for broken dpkg --print-gnu-build-architecture (patch by 
+    Andreas Jochens <aj@andaco.de>).
+    Closes: #328102.
+
+ -- Michael Schmitz <schmitz@biophys.uni-duesseldorf.de>  Wed, 14 Sep 2005 17:25:23 +0100
+
+mac-fdisk (0.1-12) unstable; urgency=low
+
+  * Add makefile support for ppc64 arch (patch by Andreas Jochens
+    <aj@andaco.de>).
+    Closes: #307897.
+
+ -- Michael Schmitz <schmitz@biophys.uni-duesseldorf.de>  Mon, 09 May 2005 12:58:47 +0100
+
+mac-fdisk (0.1-11) unstable; urgency=low
+
+  * Big fat overdue cleanup - back in business after replacing my stolen
+    Powerbook. 
+  * fixes as suggested in proposed NMU: changes mostly by Frank Lichtenheld
+    <djpig@debian.org>, with subarchitecture modifications by Colin Watson 
+    <cjwatson@debian.org>.
+  * Copy needed kernel definitions from kernel-headers 2.4.25 (powerpc) and
+    2.4.26-m68k (cjwatson; Closes: #262457).
+  * Add Subarchitecture: fields in DEBIAN/control of the udebs. "mac" for
+    mac-fdisk-udeb on m68k, "powermac_oldworld powermac_newworld" for
+    mac-fdisk-udeb on powerpc, and "chrp chrp_pegasos prep iseries" for
+    pmac-fdisk-udeb on powerpc (djpig; Closes: #250581).
+  * Remove XSI:sms in debian/rules and debian/postinst, patch by David
+    Weinehall (djpig; Closes: #254918).
+
+ -- Michael Schmitz <schmitz@biophys.uni-duesseldorf.de>  Thu, 26 Aug 2004 14:23:13 +0200
+
+mac-fdisk (0.1-10) unstable; urgency=high
+
+  * Added .udeb magic to rules (kudos to Gaudenz Steinlin
+    <gaudenz@soziologie.ch>); kept mac-fdisk in /sbin though). 
+    Closes: #188420.
+
+ -- Michael Schmitz <schmitz@biophys.uni-duesseldorf.de>  Wed, 04 Jun 2003 17:06:02 +0200
+
+mac-fdisk (0.1-9) unstable; urgency=high
+
+  * Rebuilt with woody binutils to allow for prelinking. Closes: #176353.
+
+  * Set 'automagically mount on boot' flag when creating HFS partitions
+    (thanks to Derrick Pates <dpates@dsdk12.net> for finding the
+    undocumented bit!). Experimental, but this is unstable, right?
+
+ -- Michael Schmitz <schmitz@biophys.uni-duesseldorf.de>  Fri, 24 Jan 2003 16:20:20 +0200
+
+mac-fdisk (0.1-8) unstable; urgency=high
+
+  * Update mac-fdisk man page (kudos to Chris Tillman). Closes: #121928.
+
+  * Remove mac-fdisk-cross from control file; remove Sparc from Arch: entries
+    (to get rid of outdated mac-fdisk-cross 0.1-1 in the archive). Change
+    package descrption line for pmac-fdisk to emphasize it's a fdisk clone.
+
+  * Change sync() to ioctl(fd, BLKFLSBUF) to flush partition table to disk
+    on write - hopefully work around a kernel bug on new machines.
+
+ -- Michael Schmitz <schmitz@biophys.uni-duesseldorf.de>  Fri, 07 Dec 2001 13:38:10 +0200
+
+mac-fdisk (0.1-7) unstable; urgency=high
+
+  * Bugfix: mac-fdisk didn't properly handle devfs device names. Mangle disk
+    name (.../disc) in dump routine to end in .../part%d (patch by Colin
+    Walters <walters@verbum.org>). Closes: #110056.
+
+ -- Michael Schmitz <schmitz@biophys.uni-duesseldorf.de>  Mon, 04 Sep 2001 16:02:45 +0200
+
+mac-fdisk (0.1-6.0potato1) stable; urgency=high
+
+  * Feature added: menu option to create bootstrap partition needed for 
+    powerpc NewWorld machines with the proper type and size (patch supplied 
+    by Ethan Benson). This should help newbies that won't read the docs
+    anyway. Closes: #99660.
+
+  * Bugfix: mac-fdisk used to get the disk size wrong when brute force
+    probing for end-of-disk by seek&read. Turns out gcc did not cope with 
+    arithmetics on long long types without explicit cast. Closes: #99700.
+
+ -- Michael Schmitz <schmitz@biophys.uni-duesseldorf.de>  Fri, 15 Jun 2001 12:16:35 +0200
+
+mac-fdisk (0.1-6) unstable; urgency=high
+
+  * Feature added: menu option to create bootstrap partition needed for 
+    powerpc NewWorld machines with the proper type and size (patch supplied 
+    by Ethan Benson). This should help newbies that won't read the docs
+    anyway. Closes: #99660.
+
+  * Bugfix: mac-fdisk used to get the disk size wrong when brute force
+    probing for end-of-disk by seek&read. Turns out gcc did not cope with 
+    arithmetics on long long types without explicit cast. Closes: #99700.
+
+ -- Michael Schmitz <schmitz@biophys.uni-duesseldorf.de>  Mon, 04 Jun 2001 13:54:21 +0200
+
+mac-fdisk (0.1-5) unstable; urgency=low
+
+  * Bugfix: fix build problems for glibc 2.2 (remove string.h includes, 
+    use lseek64 for llseek, fix some petty gcc warnings)
+
+ -- Michael Schmitz <schmitz@biophys.uni-duesseldorf.de>  Wed, 02 Mar 2001 19:42:01 +0200
+
+mac-fdisk (0.1-4) unstable; urgency=low
+
+  * Bugfix: correct off-by-one error on moving a partition downwards in the
+    partition map. Clarification of various program messages and prompts
+    (closes #69148, #69149 and #69152). Update of mac-fdisk man page.
+
+ -- Michael Schmitz <schmitz@biophys.uni-duesseldorf.de>  Wed, 08 Oct 2000 17:49:07 +0200
+
+mac-fdisk (0.1-3) unstable; urgency=low
+
+  * PowerPC install fixes (work around lack of /proc/hardware), rename pmac-fdisk
+    package (previously pmac-fdisk-cross). Add pmac-fdisk man page.
+
+ -- Michael Schmitz <schmitz@biophys.uni-duesseldorf.de>  Wed, 08 Mar 2000 18:29:07 +0200
+
+mac-fdisk (0.1-2) unstable; urgency=low
+
+  * Change man page name and install location, changed man page, rebuild for 2.2.
+
+ -- Michael Schmitz <schmitz@biophys.uni-duesseldorf.de>  Fri, 22 Oct 1999 20:29:07 +0200
+
+mac-fdisk (0.1-1) unstable; urgency=low
+
+  * Initial Release. (built from previous pdisk-0.4a2 with fixes by Roman Hodek)
+
+ -- Michael Schmitz <schmitz@lcbvax.cchem.berkeley.edu>  Sat, 28 Feb 1998 21:58:07 -0800
+
+Local variables:
+mode: debian-changelog
+add-log-mailing-address: "schmitz@biophys.uni-duesseldorf.de"
+End:

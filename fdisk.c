@@ -62,7 +62,6 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include <fcntl.h>
 #include <ctype.h>
 #include <setjmp.h>
@@ -71,9 +70,9 @@
 
 #include <sys/ioctl.h>
 
-#include <linux/genhd.h>
-#include <linux/hdreg.h>
-#include <linux/fs.h>
+typedef unsigned short kdev_t;	/* BAD hack; kdev_t is not exported */
+
+#include "kernel-defs.h"
 
 #include "fdisk.h"
 
@@ -428,7 +427,7 @@ void read_extended(struct partition *p)
 		offsets[partitions] = extended_offset + SWAP32(p->start_sect);
 		if (!extended_offset)
 			extended_offset = SWAP32(p->start_sect);
-		if (llseek(fd, (loff_t)offsets[partitions]
+		if (lseek64(fd, (loff_t)offsets[partitions]
 			       * SECTOR_SIZE, SEEK_SET) < 0)
 			fatal(unable_to_seek);
 		if (!(buffers[partitions] = (char *) malloc(SECTOR_SIZE)))
@@ -438,14 +437,14 @@ void read_extended(struct partition *p)
 		part_table[partitions] = ext_pointers[partitions] = NULL;
 		q = p = offset(buffers[partitions], 0);
 		for (i = 0; i < 4; i++, p++) {
-			if (p->sys_ind == EXTENDED)
+			if (p->sys_ind == EXTENDED) {
 				if (ext_pointers[partitions])
 					fprintf(stderr, "Warning: extra link "
 						"pointer in partition table "
 						"%d\n", partitions + 1);
 				else
 					ext_pointers[partitions] = p;
-			else if (p->sys_ind)
+			} else if (p->sys_ind) {
 				if (part_table[partitions])
 					fprintf(stderr,
 						"Warning: ignoring extra data "
@@ -453,15 +452,18 @@ void read_extended(struct partition *p)
 						partitions + 1);
 				else
 					part_table[partitions] = p;
+			}
 		}
-		if (!part_table[partitions])
+		if (!part_table[partitions]) {
 			if (q != ext_pointers[partitions])
 				part_table[partitions] = q;
 			else part_table[partitions] = q + 1;
-		if (!ext_pointers[partitions])
+		}
+		if (!ext_pointers[partitions]) {
 			if (q != part_table[partitions])
 				ext_pointers[partitions] = q;
 			else ext_pointers[partitions] = q + 1;
+		}
 		p = ext_pointers[partitions++];
 	}
 }
@@ -497,11 +499,12 @@ void get_boot(void)
 	warn_geometry();
 
 	for (i = 0; i < 4; i++)
-		if(part_table[i]->sys_ind == EXTENDED)
+		if(part_table[i]->sys_ind == EXTENDED) {
 			if (partitions != 4)
 				fprintf(stderr, "Ignoring extra extended "
 					"partition %d\n", i + 1);
 			else read_extended(part_table[ext_index = i]);
+		}
 
 	for (i = 3; i < partitions; i++)
 		if (SWAP16(*table_check(buffers[i])) != PART_TABLE_FLAG) {
@@ -621,6 +624,7 @@ uint read_int(uint low, uint dflt, uint high, enum offset base, char *mesg)
 			case lower: i += low; break;
 			case upper: i += high; break;
 			case deflt: i += dflt; break;
+			default: break;
 			}
 		}
 		else
@@ -844,12 +848,12 @@ static void check_consistency(struct partition *p, int partition)
 		return;		/* do not check extended partitions */
 
 /* physical beginning c, h, s */
-	pbc = p->cyl & 0xff | (p->sector << 2) & 0x300;
+	pbc = (p->cyl & 0xff) | ((p->sector << 2) & 0x300);
 	pbh = p->head;
 	pbs = p->sector & 0x3f;
 
 /* physical ending c, h, s */
-	pec = p->end_cyl & 0xff | (p->end_sector << 2) & 0x300;
+	pec = (p->end_cyl & 0xff) | ((p->end_sector << 2) & 0x300);
 	peh = p->end_head;
 	pes = p->end_sector & 0x3f;
 
@@ -941,7 +945,7 @@ void x_list_table(int extend)
 		disk_device, heads, sectors, cylinders);
         printf("Nr AF  Hd Sec  Cyl  Hd Sec  Cyl   Start    Size ID\n");
 	for (i = 0 ; i < partitions; i++)
-		if (p = q[i]) {
+		if ((p = q[i])) {
                         printf("%2d %02x%4d%4d%5d%4d%4d%5d%8d%8d %02x\n",
 				i + 1, p->boot_ind, p->head,
 				sector(p->sector),
@@ -1026,7 +1030,7 @@ void verify(void)
 				last[i]);
 			total += last[i] + 1 - first[i];
 			for (j = 0; j < i; j++)
-			if (first[i] >= first[j] && first[i] <= last[j]
+			if ((first[i] >= first[j] && first[i] <= last[j])
 					|| (last[i] <= last[j] &&
 					last[i] >= first[j])) {
 				printf("Warning: partition %d overlaps "
@@ -1060,11 +1064,11 @@ void verify(void)
 	if (total > heads * sectors * cylinders)
 		printf("Total allocated sectors %d greater than the maximum "
 			"%d\n", total, heads * sectors * cylinders);
-	else if (total = heads * sectors * cylinders - total)
+	else if ((total = heads * sectors * cylinders - total))
 		printf("%d unallocated sectors\n", total);
 }
 
-void add_partition(int n, int sys)
+static void add_partition(int n, int sys)
 {
 	char mesg[48];
 	int i, read = 0;
@@ -1100,11 +1104,12 @@ void add_partition(int n, int sys)
 		for (i = 0; i < partitions; i++) {
 			if (start == offsets[i])
 				start += sector_offset;
-			if (start >= first[i] && start <= last[i])
+			if (start >= first[i] && start <= last[i]) {
 				if (n < 4)
 					start = last[i] + 1;
 				else
 					start = last[i] + sector_offset;
+			}
 		}
 		if (start > limit)
 			break;
@@ -1249,7 +1254,7 @@ void write_table(void)
 	for (i = 3; i < partitions; i++)
 		if (changed[i]) {
 			*table_check(buffers[i]) = SWAP16(PART_TABLE_FLAG);
-			if (llseek(fd, (loff_t)offsets[i]
+			if (lseek64(fd, (loff_t)offsets[i]
 					* SECTOR_SIZE, SEEK_SET) < 0)
 				fatal(unable_to_seek);
 			if (write(fd, buffers[i], SECTOR_SIZE) != SECTOR_SIZE)
@@ -1262,7 +1267,7 @@ void write_table(void)
 	       "(Reboot to ensure the partition table has been updated.)\n");
 	sync();
 	sleep(2);
-	if (i = ioctl(fd, BLKRRPART)) {
+	if ((i = ioctl(fd, BLKRRPART))) {
                 error = errno;
         } else {
                 /* some kernel versions (1.2.x) seem to have trouble
@@ -1270,7 +1275,7 @@ void write_table(void)
 		   twice, the second time works. - biro@yggdrasil.com */
                 sync();
                 sleep(2);
-                if(i = ioctl(fd, BLKRRPART))
+                if((i = ioctl(fd, BLKRRPART)))
                         error = errno;
         }
 
@@ -1391,7 +1396,7 @@ void xselect(void)
 void try(char *device)
 {
 	disk_device = device;
-	if (!setjmp(listingbuf))
+	if (!setjmp(listingbuf)) {
 		if ((fd = open(disk_device, type_open)) >= 0) {
 			close(fd);
 			get_boot();
@@ -1407,6 +1412,7 @@ void try(char *device)
 		    exit(1);
 		 }
 	      }
+	}
 }
 
 void main(int argc, char **argv)

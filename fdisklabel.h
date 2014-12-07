@@ -52,6 +52,12 @@
 #define BSD_LABELOFFSET   0
 #define	BSD_BBSIZE        0
 #define	BSD_SBSIZE        0
+#elif defined (__mc68000__)
+/* LABELSECTOR, LABELOFFSET, BBSIZE & SBSIZE are undefined for __powerpc__ */
+#define BSD_LABELSECTOR   0
+#define BSD_LABELOFFSET   0
+#define	BSD_BBSIZE        0
+#define	BSD_SBSIZE        0
 #else
 #error unknown architecture
 #endif

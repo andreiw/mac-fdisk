@@ -5,7 +5,14 @@ pdisk: pdisk.o dump.o partition_map.o convert.o io.o errors.o bitfield.o
 fdisk: fdisk.o fdisklabel.o
 
 clean:
-	rm -f *.o pdisk fdisk
+	rm -f *.o pdisk fdisk mac-fdisk pmac-fdisk
+
+install: pdisk fdisk
+	-rm -f pmac-fdisk mac-fdisk
+	ln pdisk mac-fdisk
+	ln fdisk pmac-fdisk
+	install -o root -g root -m 0755 mac-fdisk ${DESTDIR}/sbin
+	install -o root -g root -m 0755 pmac-fdisk ${DESTDIR}/sbin
 
 distribution:
 	cd ..; tar cvf pdisk.src.tar.`date +%y%m%d` --files-from pdisk/list.src

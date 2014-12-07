@@ -1,0 +1,50 @@
+#! /bin/sh
+set -e
+
+Arch=`dpkg --print-architecture`
+
+#
+# make symlink /sbin/fdisk point to the native fdisk
+#
+
+# This is also true if /sbin/fdisk is a dangling symlink; in that case we
+# want to update the link, too.
+if [ ! -e /sbin/fdisk ]; then
+	machine=""
+	if [ "$Arch" = "m68k" ]; then
+		case `awk '$1 == "Model:" { print $2 }' /proc/hardware` in
+			Atari)
+				machine=atari
+				;;
+			Amiga)
+				machine=amiga
+				;;
+			Macintosh)
+				machine=mac
+				;;
+			Motorola) # MVME
+				;;
+		esac
+	elif [ "$Arch" = "powerpc" -o "$Arch" = "ppc64" -o "$Arch" = "ppc64el" ]; then
+		# case `awk '$1 == "motherboard" { print $6 }' /proc/cpuinfo` in
+		# case `cat /proc/cpuinfo | grep -E "^motherboard" | sed -e 's/.* \([a-zA-Z]*\)$/\1/'` in
+		case `awk '$1 == "motherboard" { print $NF }' /proc/cpuinfo` in
+			Macintosh)
+				machine=mac
+				;;
+			*)
+				machine=pmac
+				;;
+		esac
+
+	fi
+	if [ -n "$machine" ] && [ -f /sbin/$machine-fdisk ]; then
+		ln -sf $machine-fdisk /sbin/fdisk
+	else
+		echo "No native fdisk for this machine type!"
+	fi
+fi
+
+#DEBHELPER#
+
+exit 0

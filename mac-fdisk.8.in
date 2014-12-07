@@ -1,0 +1,262 @@
+.TH MAC-FDISK 8 "1 December 2001" "Debian" "Apple Disk Partitioning Manual"
+.SH NAME
+mac-fdisk \- Apple partition table editor for Linux
+.SH SYNOPSIS
+.B mac-fdisk
+.B "[ \-h | \--help ] [ \-v | \--version ] [ \-l | \--list device ... ]"
+.br
+.B mac-fdisk
+.B "[ \-r | \--readonly ] device ... "
+.SH DESCRIPTION
+.B mac-fdisk
+is a command line type program which partitions disks using the standard Apple
+disk partitioning scheme described in "Inside Macintosh: Devices".
+The
+.I device
+is usually one of the following:
+
+.nf
+.RS
+/dev/sda
+/dev/sdb
+/dev/sdc
+/dev/sdd
+/dev/sde
+/dev/sdf
+/dev/sdg
+/dev/hda
+/dev/hdb
+
+.RE
+.fi
+/dev/sda is the first hard disk on the SCSI bus (i.e. the
+one with the lowest id), /dev/sdb is the second hard disk, and so on.
+The
+.I partition
+is a
+.I device
+name followed by a partition number.
+The partition number is the index (starting from one) of the partition
+map entry in the partition map (and the partition map itself occupies the
+first entry).
+For example,
+.B /dev/sda2
+is the partition described by the second entry in the partiton map on /dev/sda.
+
+.SH OPTIONS
+.TP
+.B \-v | \--version
+Prints version number of the
+.B mac-fdisk
+program.
+.TP
+.B \-h | \--help
+Prints a list of available commands for the
+.B mac-fdisk
+program.
+.TP
+.B \-l | \--list
+Lists the partition tables for the specified
+.IR device(s).
+With no 
+.IR device(s)
+given, lists all SCSI and IDE devices found in the system.
+.TP
+.B \-r | \--readonly
+Prevents
+.B mac-fdisk
+from writing to the device.
+.SH "Editing Partition Tables"
+An argument which is simply the name of a
+.I device
+indicates that
+.B mac-fdisk
+should edit the partition table of that device. Once started, 
+.B mac-fdisk 
+presents an interactive command prompt to edit the partition table. 
+The partition editing commands are:
+
+.nf
+.RS
+h    list available commands
+p    print (list) the current edited partition table status
+P    print ordered by base address
+i    initialize the partition map
+s    change size of partition map
+b    create new 800K Apple_Bootstrap partition (used by yaboot)
+c    create new standard Linux type partition
+C    create new partition, specifying the partition type
+d    delete a partition
+r    reorder partition entry
+w    write the partition table to disk
+q    quit 
+
+.RE
+.fi
+Commands which take arguments prompt for each argument in turn.
+You can also type the arguments separated by spaces
+and those prompts will be skipped. The
+.B i
+and
+.B w
+commands will prompt for confirmation. None of the editing you do will 
+actually affect the state of the disk you are partitioning until the 
+.B w 
+command is issued. Then the map in its edited state will be 
+permanently written to the disk.
+
+Partitions are always specified by their number, the index of the
+partition entry in the partition map.  Many commands will change the
+index numbers of partitions which follow the affected partition; you are
+encouraged to use the 
+.B p
+command to print the partition table as frequently as necessary. For SCSI
+disks, the partition table should not contain more than fifteen partitions 
+(partition map excluded). IDE disks have a limit of 31 partitions.
+
+Here is a more-or-less typical output for the print command:
+
+.nf
+.RS
+Command (? for help): p
+/dev/sdb
+        #                type name              length   base    ( size )  system
+/dev/sdb1 Apple_partition_map Apple                 63 @ 1       ( 31.5k)  Partition map
+/dev/sdb2      Apple_Driver43 Macintosh             54 @ 64      ( 27.0k)  Driver 4.3
+/dev/sdb3      Apple_Driver43 Macintosh             74 @ 118     ( 37.0k)  Driver 4.3
+/dev/sdb4  Apple_Driver_IOKit Macintosh            512 @ 192     (256.0k)  Unknown
+/dev/sdb5       Apple_Patches Patch Partition      512 @ 704     (256.0k)  Unknown
+/dev/sdb6           Apple_HFS untitled         3072000 @ 1216    (  1.5G)  HFS
+/dev/sdb7           Apple_HFS untitled 2        333026 @ 3073216 (162.6M)  HFS
+/dev/sdb8          Apple_Free Extra                 10 @ 3406242 (  5.0k)  Free space
+
+Block size=512, Number of Blocks=3406252
+DeviceType=0x0, DeviceId=0x0
+Drivers-
+1: @ 64 for 22, type=0x1
+2: @ 118 for 36, type=0xffff
+
+.RE
+.fi
+
+The
+.B i
+(initialize) command prompts for the size of the device.  You can just
+type Return to accept the offered size, which should be correct.
+
+The
+.B b
+command is a shortcut to create the bootstrap partition used on PowerPC
+NewWorld machines. It is equivalent to creating an 800k
+.B Apple_Bootstrap
+type partition using the 
+.B C
+command described below. The sole purpose of this partition is to
+store the boot loader. In multiboot environments, the first bootable
+partition found on the disk takes precedence unless a specific boot
+partition is set in OpenFirmware, so it's best to create the bootstrap
+partition first, or move it to a position before any
+.B Apple_HFS 
+or 
+.B Apple_Boot
+partitions using the 
+.B r
+command described below. Then you will still able to boot Linux after
+the occasional OpenFirmware reset.
+
+The
+.B c
+(create new partition) command has three arguments. As mentioned
+above you can type the arguments following the command, separated by
+spaces, or respond to prompts for each argument:
+
+  1) The base address of the start of the partition.
+
+     You can specify a number in blocks (most likely reading from the
+     existing partition map) or you can also type a partition number
+     followed by the letter 'p' to indicate that the new partition
+     should take the place of that existing free space partition.
+
+  2) The length of the partition.
+
+     Again, you can specify a number in blocks or type a partition
+     number followed by the letter 'p' to indicate use of the entire
+     partition. You can also type a number followed by 'k', 'm', or
+     'g' to indicate the size in kilobytes, megabytes, or gigabytes
+     respectively. (These are powers of 1024, of course, not powers
+     of 1000.)
+
+  3) The name of the partition.
+
+     This can be a single word without quotes, or a string surrounded
+     by single or double quotes. It is best to name any swap partition
+     you create `swap'; other partition names are up to you. The names
+     are not visible to Linux.
+
+The
+.B C
+command is identical to the
+.B c
+command, with the addition of a partition type argument after the
+other arguments. The partition type used for Linux swap and data partitons
+is 
+.B APPLE_UNIX_SVR2
+(this is the partition type created by the 
+.B c
+command). Under normal circumstances, you should not need to use this
+command.
+
+The
+.B d
+command deletes the partition number specified, replacing that partition 
+with partitionable free space.
+
+The
+.B r
+(reorder) command allows the index number of partitions to be changed.
+The index numbers are constrained to be a contiguous sequence. 
+.B mac-fdisk
+will enforce this constraint by recalculating the partition numbers
+after each insert, delete or reorder operation. OpenFirmware looks for
+bootable partitions in the order specified by the index. The
+partitions are not moved on the disk. This command takes two
+arguments, the number of the partition to be moved and the partition
+number it should become.
+
+The
+.B w
+command writes the partition map out to disk. Note that partition
+maps for disks with mounted partitions cannot immediately be
+reinterpreted by the kernel. In order to use the new partition map you
+must reboot. Within the Debian installer system, 
+.B mac-fdisk 
+is normally invoked before any partitions are mounted, thus a reboot is not 
+necessary before continuing the installation.
+
+The
+.B q
+command terminates the program. If there was no 
+.B w
+command issued during the program run, then there will be no effect on the disk.
+
+.SH BUGS
+Some people believe there should really be just one disk partitioning utility.
+
+.B mac-fdisk
+should be able to create HFS partitions that work. Currently, if a
+pre-existing HFS partition is resized, MacOS will continue to use the
+partition size stored in the HFS 'superblock' instead of using the size from
+the partition table (the MacOS volume on the partition remains valid even
+though the sizes don't match anymore). This can have undesired side effects
+especially when creating a smaller HFS partition followed by a few Linux 
+partitions in place of the previous HFS partition space. To avoid this 
+issue, create MacOS partitions within MacOS and then don't resize them 
+in 
+.B mac-fdisk.
+
+.SH "SEE ALSO"
+.BR fdisk (8), 
+.BR mkswap (8),
+.BR mkfs (8)
+.SH AUTHOR
+Eryk Vershen (eryk@apple.com), man page revised by Chris Tillman (tillman@azstarnet.com)

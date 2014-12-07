@@ -1,0 +1,18 @@
+mac-fdisk for DEBIAN
+----------------------
+
+Comments regarding mac-fdisk
+
+mac-fdisk provides Apple partition format utilities required for
+installation of Debian/68k on Apple Macintosh computers. The Debian version
+of mac-fdisk is derived from pdisk 0.4a2 (pdisk.970115.tar) by Eryk Vershen 
+(eryk@apple.com).
+pmac-fdisk is a version of the PC partition format utilities for PowerPC
+computers, taken from the same pdisk source version and can be used for
+installation of Debian/68k on PC partition format disks on Macintosh.
+
+Modifications have been made to the pdisk partition table output code to permit
+parsing the output of 'mac-fdisk -l' in a manner consistent with other Linux
+fdisk utilities. (Christiaan Welvaart, <>)
+
+Michael Schmitz <schmitz@lcbvax.cchem.berkeley.edu>, Sat, 28 Feb 1998 12:58:07 -0800
