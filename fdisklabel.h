@@ -35,7 +35,7 @@
 #define	BSD_MAXPARTITIONS 8
 #define BSD_LINUX_BOOTDIR "/usr/ucb/mdec"
 
-#if defined (i386)
+#if defined (i386) || defined (__x86_64__)
 #define BSD_LABELSECTOR   1
 #define BSD_LABELOFFSET   0
 #define	BSD_BBSIZE        8192		/* size of boot area, with label */

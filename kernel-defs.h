@@ -13,10 +13,10 @@ struct hd_geometry {
 };
 
 /* from asm/ioctl.h */
-#define _IOC_NRBITS	8
-#define _IOC_TYPEBITS	8
-#define _IOC_SIZEBITS	13
-#define _IOC_DIRBITS	3
+/* #define _IOC_NRBITS	8 */
+/* #define _IOC_TYPEBITS	8 */
+/* #define _IOC_SIZEBITS	13 */
+/* #define _IOC_DIRBITS	3 */
 
 #define _IOC_NRMASK	((1 << _IOC_NRBITS)-1)
 #define _IOC_TYPEMASK	((1 << _IOC_TYPEBITS)-1)
